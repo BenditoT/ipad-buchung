@@ -1,0 +1,2160 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#2563eb">
+<title>iPad-Buchung KRS</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect fill='%232563eb' width='180' height='180' rx='36'/%3E%3Ctext x='50%25' y='55%25' font-size='100' fill='white' text-anchor='middle' dominant-baseline='central'%3E📱%3C/text%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect fill='%232563eb' width='180' height='180' rx='36'/%3E%3Ctext x='50%25' y='55%25' font-size='100' fill='white' text-anchor='middle' dominant-baseline='central'%3E📱%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --blue: #2563eb; --blue-light: #dbeafe; --blue-dark: #1d4ed8;
+    --green: #16a34a; --green-light: #dcfce7;
+    --red: #dc2626; --red-light: #fee2e2;
+    --yellow: #f59e0b; --yellow-light: #fef3c7;
+    --purple: #7c3aed; --purple-light: #ede9fe;
+    --gray: #6b7280; --gray-light: #f3f4f6; --gray-border: #e5e7eb;
+    --radius: 12px; --shadow: 0 1px 3px rgba(0,0,0,.1);
+    /* Koffer-Farben: WCAG AA konform (dunklere Varianten) */
+    --koffer-a: #1e40af; --koffer-b: #5b21b6; --koffer-c: #b45309;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: #f8fafc; color: #1e293b;
+    max-width: 100vw; overflow-x: hidden;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  /* Header */
+  .header {
+    background: var(--blue); color: white;
+    padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 8px rgba(37,99,235,.3);
+  }
+  .header h1 { font-size: 18px; font-weight: 700; }
+  .header-actions { display: flex; gap: 8px; }
+  .header-btn {
+    background: rgba(255,255,255,.2); border: none; color: white;
+    width: 40px; height: 40px; border-radius: 10px; font-size: 20px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .header-btn:active { background: rgba(255,255,255,.35); }
+  .header-btn.spinning { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .data-timestamp {
+    font-size: 11px; color: rgba(255,255,255,.7); align-self: center;
+    white-space: nowrap;
+  }
+  .admin-badge {
+    background: var(--purple); color: white; font-size: 11px; font-weight: 700;
+    padding: 3px 8px; border-radius: 4px; margin-left: 8px; vertical-align: middle;
+  }
+
+  /* Week Navigation */
+  .week-nav {
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    padding: 12px 16px; background: white; border-bottom: 1px solid var(--gray-border);
+  }
+  .week-nav button {
+    background: var(--gray-light); border: none; width: 36px; height: 36px;
+    border-radius: 8px; font-size: 18px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .week-nav button:active { background: var(--blue-light); }
+  .week-nav .week-label { font-weight: 600; font-size: 15px; min-width: 180px; text-align: center; }
+  .today-btn {
+    background: var(--blue) !important; color: white !important;
+    padding: 0 12px !important; width: auto !important; font-size: 13px !important;
+    font-weight: 600;
+  }
+
+  /* Tab Bar (Bottom) */
+  .tab-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: white; border-top: 1px solid var(--gray-border);
+    display: flex; z-index: 100;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  .tab-item {
+    flex: 1; padding: 8px 4px; text-align: center; cursor: pointer;
+    color: var(--gray); font-size: 11px; font-weight: 500;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    border: none; background: none;
+  }
+  .tab-item.active { color: var(--blue); }
+  .tab-item.admin-tab { color: var(--purple); }
+  .tab-item.admin-tab.active { color: var(--purple); font-weight: 700; }
+  .tab-icon { font-size: 22px; }
+
+  /* Content */
+  .content { padding: 0 0 calc(70px + env(safe-area-inset-bottom, 0)) 0; }
+
+  /* Wochenübersicht Tabelle */
+  .week-grid { overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 8px; }
+  .week-table { width: 100%; border-collapse: collapse; min-width: 600px; font-size: 13px; }
+  .week-table th {
+    background: var(--gray-light); padding: 8px 4px; font-weight: 600;
+    position: sticky; top: 0; font-size: 12px; text-align: center;
+    border-bottom: 2px solid var(--gray-border);
+  }
+  .week-table th.today-col { background: var(--blue-light); color: var(--blue-dark); }
+  .week-table th.ferien-col { background: #fef3c7; color: #92400e; }
+  .week-table td {
+    padding: 4px; vertical-align: top; border-bottom: 1px solid var(--gray-border);
+    min-width: 100px; height: 60px;
+  }
+  .week-table .stunde-col {
+    font-weight: 600; font-size: 12px; color: var(--gray);
+    text-align: center; min-width: 40px; width: 40px; background: var(--gray-light);
+  }
+
+  /* Buchungs-Slot — verbesserte Touch-Targets */
+  .slot { border-radius: 8px; padding: 6px 8px; min-height: 52px; cursor: pointer; }
+  .slot-free { background: var(--green-light); border: 1px dashed #86efac; }
+  .slot-free:active { background: #bbf7d0; }
+  .slot-booked {
+    color: white; font-size: 11px; font-weight: 500; border: none; position: relative;
+    text-shadow: 0 1px 2px rgba(0,0,0,.25);
+  }
+  .slot-booked .slot-teacher { font-weight: 700; font-size: 12px; }
+  .slot-booked .slot-room { opacity: .9; font-size: 10px; }
+  .slot-booked .slot-koffer { opacity: .9; font-size: 10px; }
+  .slot-ferien {
+    background: #fef3c7; border: 1px solid #fde68a; color: #92400e;
+    font-size: 11px; font-weight: 500; display: flex; align-items: center;
+    justify-content: center; cursor: default; opacity: .7;
+  }
+
+  .koffer-a { background: var(--koffer-a); }
+  .koffer-b { background: var(--koffer-b); }
+  .koffer-c { background: var(--koffer-c); }
+  .koffer-default { background: var(--gray); }
+
+  /* Modal / Buchungsformular */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.5);
+    z-index: 200; display: flex; align-items: flex-end; justify-content: center;
+  }
+  .modal {
+    background: white; border-radius: 20px 20px 0 0; width: 100%; max-width: 500px;
+    max-height: 85vh; overflow-y: auto; padding: 20px 20px 32px;
+    animation: slideUp .25s ease-out;
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .modal-handle {
+    width: 36px; height: 4px; background: #d1d5db; border-radius: 2px;
+    margin: 0 auto 16px;
+  }
+  .modal h2 { font-size: 20px; margin-bottom: 16px; }
+  .form-group { margin-bottom: 12px; }
+  .form-label { display: block; font-size: 13px; font-weight: 600; color: var(--gray); margin-bottom: 4px; }
+  .form-select, .form-input {
+    width: 100%; padding: 12px; border: 1px solid var(--gray-border);
+    border-radius: var(--radius); font-size: 16px; background: white;
+    appearance: none; -webkit-appearance: none;
+  }
+  .form-select { background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M6 8L1 3h10z' fill='%236b7280'/%3E%3C/svg%3E") no-repeat right 12px center; padding-right: 36px; }
+  .form-select:focus, .form-input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-light); }
+
+  /* Sticky Buchen-Button im Modal */
+  .modal-actions {
+    position: sticky; bottom: -32px; background: white;
+    padding: 12px 0 0; margin: 0 -20px -32px; padding: 12px 20px 32px;
+    border-top: 1px solid var(--gray-border);
+  }
+  .btn-book {
+    width: 100%; padding: 14px; background: var(--blue); color: white;
+    border: none; border-radius: var(--radius); font-size: 17px; font-weight: 700;
+    cursor: pointer;
+  }
+  .btn-book:active { background: var(--blue-dark); }
+  .btn-book:disabled { background: #93c5fd; cursor: not-allowed; }
+  .btn-cancel-booking {
+    width: 100%; padding: 12px; background: var(--red-light); color: var(--red);
+    border: 1px solid var(--red); border-radius: var(--radius); font-size: 15px;
+    font-weight: 600; cursor: pointer; margin-top: 8px;
+  }
+  .btn-cancel-series {
+    width: 100%; padding: 12px; background: var(--purple-light); color: var(--purple);
+    border: 1px solid var(--purple); border-radius: var(--radius); font-size: 15px;
+    font-weight: 600; cursor: pointer; margin-top: 8px;
+  }
+
+  /* Koffer-Übersicht */
+  .koffer-list { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+  .koffer-card {
+    background: white; border-radius: var(--radius); padding: 16px;
+    box-shadow: var(--shadow); border-left: 4px solid var(--blue);
+  }
+  .koffer-card h3 { font-size: 16px; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .koffer-card .meta { font-size: 13px; color: var(--gray); }
+  .koffer-card .status-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 6px;
+    font-size: 12px; font-weight: 600; margin-top: 6px;
+  }
+  .badge-free { background: var(--green-light); color: var(--green); }
+  .badge-booked { background: var(--red-light); color: var(--red); }
+
+  /* Meine Buchungen */
+  .my-bookings { padding: 12px; }
+  .booking-card {
+    background: white; border-radius: var(--radius); padding: 14px;
+    box-shadow: var(--shadow); margin-bottom: 10px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .booking-info { flex: 1; }
+  .booking-date { font-weight: 700; font-size: 15px; }
+  .booking-detail { font-size: 13px; color: var(--gray); margin-top: 2px; }
+  .booking-actions { display: flex; gap: 6px; }
+  .btn-small {
+    padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
+    border: none; cursor: pointer;
+  }
+  .btn-storno { background: var(--red-light); color: var(--red); }
+  .btn-storno:active { background: #fecaca; }
+
+  /* Serie badge */
+  .serie-badge {
+    display: inline-block; background: var(--purple-light); color: var(--purple);
+    font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; margin-left: 4px;
+  }
+
+  /* Toast Notification */
+  .toast {
+    position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+    background: #1e293b; color: white; padding: 12px 20px; border-radius: 10px;
+    font-size: 14px; font-weight: 500; z-index: 300; box-shadow: 0 4px 12px rgba(0,0,0,.25);
+    animation: fadeIn .2s ease-out; max-width: 90vw; text-align: center;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .toast-error { background: var(--red); }
+  .toast-success { background: var(--green); }
+  .toast-btn { background: rgba(255,255,255,.25); border: none; color: white; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+  @keyframes fadeIn { 0% { opacity:0; transform:translateX(-50%) translateY(-10px); } 100% { opacity:1; transform:translateX(-50%) translateY(0); } }
+
+  /* Loading Spinner */
+  .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid rgba(255,255,255,.3); border-top-color: white; border-radius: 50%; animation: spin .6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-overlay {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 60px 20px; color: var(--gray); font-size: 15px; gap: 10px;
+  }
+  .loading-overlay .spinner { border-color: var(--blue-light); border-top-color: var(--blue); width: 32px; height: 32px; }
+
+  /* Lehrkraft-Auswahl (Startscreen) */
+  .login-screen {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 80vh; padding: 20px;
+  }
+  .login-screen h2 { font-size: 22px; margin-bottom: 8px; }
+  .login-screen p { color: var(--gray); margin-bottom: 24px; font-size: 14px; }
+  .login-screen .form-select, .login-screen .form-input { max-width: 320px; }
+  .login-screen .btn-book { max-width: 320px; margin-top: 16px; }
+  .pin-row { display: flex; gap: 8px; max-width: 320px; width: 100%; margin-top: 10px; }
+  .pin-row .form-input { letter-spacing: 6px; text-align: center; font-size: 20px; }
+
+  /* Lehrkraft-Suchfeld */
+  .search-container { position: relative; max-width: 320px; width: 100%; }
+  .search-results {
+    position: absolute; top: 100%; left: 0; right: 0; background: white;
+    border: 1px solid var(--gray-border); border-top: none; border-radius: 0 0 var(--radius) var(--radius);
+    max-height: 200px; overflow-y: auto; z-index: 10; box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  }
+  .search-item {
+    padding: 12px; cursor: pointer; font-size: 15px; border-bottom: 1px solid var(--gray-border);
+  }
+  .search-item:active, .search-item.selected { background: var(--blue-light); }
+  .search-item:last-child { border-bottom: none; }
+
+  /* Empty State */
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--gray); }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+
+  /* Availability Badge */
+  .avail-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;
+    margin-top: 4px;
+  }
+  .avail-free { background: var(--green-light); color: var(--green); }
+  .avail-taken { background: var(--red-light); color: var(--red); }
+  .avail-warning { background: var(--yellow-light); color: #92400e; }
+
+  /* Checkbox row */
+  .checkbox-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .checkbox-row input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--purple); }
+  .checkbox-row label { font-size: 14px; }
+
+  /* Series preview */
+  .series-preview {
+    background: var(--purple-light); border-radius: 8px; padding: 10px; margin-top: 8px;
+    font-size: 12px; max-height: 120px; overflow-y: auto;
+  }
+  .series-preview .sp-title { font-weight: 700; color: var(--purple); margin-bottom: 4px; font-size: 13px; }
+  .series-preview .sp-date { padding: 2px 0; }
+  .series-preview .sp-conflict { color: var(--red); text-decoration: line-through; }
+
+  /* Confirm Dialog */
+  .confirm-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.5);
+    z-index: 250; display: flex; align-items: center; justify-content: center;
+  }
+  .confirm-box {
+    background: white; border-radius: var(--radius); padding: 24px;
+    max-width: 340px; width: 90%; text-align: center;
+    box-shadow: 0 8px 30px rgba(0,0,0,.2);
+  }
+  .confirm-box h3 { font-size: 17px; margin-bottom: 8px; }
+  .confirm-box p { font-size: 14px; color: var(--gray); margin-bottom: 16px; }
+  .confirm-btns { display: flex; gap: 8px; }
+  .confirm-btns button { flex: 1; padding: 12px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; border: none; }
+  .confirm-cancel { background: var(--gray-light); color: var(--gray); }
+  .confirm-ok { background: var(--red); color: white; }
+
+  /* Year View */
+  .year-view { padding: 12px; }
+  .year-view h3 { font-size: 16px; padding: 8px 0; display: flex; align-items: center; gap: 8px; }
+  .year-nav { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 8px 0 12px; }
+  .year-nav button {
+    background: var(--gray-light); border: none; padding: 6px 14px;
+    border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .year-nav button:active { background: var(--purple-light); }
+  .year-nav .year-label { font-weight: 700; font-size: 15px; color: var(--purple); }
+  .year-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .year-table th {
+    background: var(--purple-light); color: var(--purple); padding: 8px 6px;
+    text-align: left; font-size: 12px; position: sticky; top: 0;
+  }
+  .year-table td { padding: 8px 6px; border-bottom: 1px solid var(--gray-border); cursor: pointer; }
+  .year-table tr:active td { background: var(--blue-light); }
+  .year-table .ferien-row td { background: #fef9e7; color: #92400e; cursor: default; font-style: italic; }
+  .year-table .ferien-row:active td { background: #fef9e7; }
+  .year-table .today-row td { background: var(--blue-light); }
+  .year-bar { display: flex; gap: 2px; height: 16px; }
+  .year-bar-seg { border-radius: 3px; min-width: 8px; height: 16px; }
+
+  /* 3-Monatsplan View */
+  .quarter-view { padding: 12px; }
+  .quarter-nav { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 8px 0 12px; }
+  .quarter-nav button {
+    background: var(--gray-light); border: none; padding: 6px 14px;
+    border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .quarter-nav button:active { background: var(--green-light); }
+  .quarter-nav .quarter-label { font-weight: 700; font-size: 15px; color: var(--green); }
+  .month-block { margin-bottom: 16px; }
+  .month-block h3 {
+    font-size: 14px; font-weight: 700; color: var(--blue-dark);
+    padding: 8px 12px; background: var(--blue-light); border-radius: 8px; margin-bottom: 4px;
+  }
+  .month-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .month-table th {
+    background: var(--gray-light); padding: 6px 4px; font-weight: 600;
+    text-align: center; font-size: 11px; border-bottom: 1px solid var(--gray-border);
+  }
+  .month-table td { padding: 5px 4px; border-bottom: 1px solid var(--gray-border); text-align: center; }
+  .month-table .ferien-cell { background: #fef9e7; color: #92400e; font-style: italic; font-size: 10px; }
+  .month-table .today-cell { background: var(--blue-light); font-weight: 700; }
+  .month-table .weekend-cell { background: var(--gray-light); color: var(--gray); }
+  .month-table .booking-dot {
+    display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin: 0 1px;
+  }
+  .month-table td.clickable { cursor: pointer; }
+  .month-table td.clickable:hover { background: var(--blue-light); }
+
+  /* Last-Minute Button */
+  .last-minute-bar {
+    margin: 10px 8px; padding: 14px 16px;
+    background: linear-gradient(135deg, #ff6b35 0%, #f7c948 50%, #ff6b35 100%);
+    background-size: 200% 200%;
+    animation: shimmer 3s ease-in-out infinite;
+    border-radius: 16px; cursor: pointer;
+    box-shadow: 0 4px 15px rgba(255,107,53,.35);
+    display: flex; align-items: center; gap: 12px;
+    position: relative; overflow: hidden;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .last-minute-bar:active { transform: scale(.97); box-shadow: 0 2px 8px rgba(255,107,53,.3); }
+  @keyframes shimmer { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+  .last-minute-icon { font-size: 32px; filter: drop-shadow(0 2px 4px rgba(0,0,0,.2)); }
+  .last-minute-text { flex: 1; }
+  .last-minute-title { font-size: 16px; font-weight: 800; color: white; text-shadow: 0 1px 3px rgba(0,0,0,.2); }
+  .last-minute-sub { font-size: 12px; color: rgba(255,255,255,.9); margin-top: 2px; }
+  .last-minute-badge {
+    background: white; color: #ff6b35; font-weight: 800; font-size: 13px;
+    padding: 6px 14px; border-radius: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.15);
+    white-space: nowrap;
+  }
+  .last-minute-modal-header {
+    text-align: center; padding: 16px 0; margin-bottom: 12px;
+    background: linear-gradient(135deg, #fff7ed, #fef3c7);
+    border-radius: 12px;
+  }
+  .last-minute-modal-header .icon { font-size: 48px; }
+  .last-minute-modal-header h2 { font-size: 20px; color: #c2410c; margin-top: 4px; }
+  .last-minute-modal-header .block-info { font-size: 14px; color: #92400e; font-weight: 600; }
+  .koffer-quick-btn {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px; margin: 8px 0; border-radius: 12px;
+    border: 2px solid var(--gray-border); background: white;
+    cursor: pointer; width: 100%; text-align: left;
+    transition: all .15s;
+  }
+  .koffer-quick-btn:hover { border-color: var(--blue); background: var(--blue-light); }
+  .koffer-quick-btn:active { transform: scale(.98); }
+  .koffer-quick-btn.taken { opacity: .5; cursor: not-allowed; border-color: var(--red-light); }
+  .koffer-quick-btn .kq-icon { font-size: 28px; }
+  .koffer-quick-btn .kq-name { font-weight: 700; font-size: 15px; }
+  .koffer-quick-btn .kq-info { font-size: 12px; color: var(--gray); }
+  .koffer-quick-btn .kq-status { margin-left: auto; font-size: 12px; font-weight: 700; }
+  .kq-free { color: var(--green); }
+  .kq-taken { color: var(--red); }
+
+  /* Header Logo */
+  .header-logo { height: 32px; width: 32px; border-radius: 6px; margin-right: 8px; object-fit: contain; background: white; padding: 2px; }
+
+  /* Responsive */
+  @media (min-width: 768px) {
+    .week-table { min-width: auto; font-size: 14px; }
+    .modal { border-radius: 20px; margin-bottom: 20px; max-width: 440px; }
+    .content { max-width: 900px; margin: 0 auto; }
+    .week-nav { max-width: 600px; margin: 0 auto; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script type="module">
+import { h, render } from 'https://esm.sh/preact@10.19.3';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'https://esm.sh/preact@10.19.3/hooks';
+import htm from 'https://esm.sh/htm@3.1.1';
+const html = htm.bind(h);
+
+// ============================================================
+// STORAGE WRAPPER (Safari Private Mode safe)
+// ============================================================
+const storage = (() => {
+  let mem = {};
+  return {
+    getItem(k) { try { return localStorage.getItem(k); } catch(e) { return mem[k] || null; } },
+    setItem(k, v) { try { localStorage.setItem(k, v); } catch(e) { mem[k] = v; } },
+    removeItem(k) { try { localStorage.removeItem(k); } catch(e) { delete mem[k]; } },
+  };
+})();
+
+// ============================================================
+// CONFIG
+// ============================================================
+const API_URL = storage.getItem('ipad_api_url') || 'https://script.google.com/macros/s/AKfycbzU0Z_ekkwBuqGAUlZqxAZSAVfGRNxdNmpuomFU25MeIiDqWEosZqO-TFNMmaM5eO1x/exec';
+
+// ============================================================
+// BaWü Schulferien & Feiertage
+// ============================================================
+const SCHULFERIEN_BAWUE = [
+  { name: 'Sommerferien 2025', von: '2025-07-31', bis: '2025-09-13' },
+  { name: 'Tag der Dt. Einheit', von: '2025-10-03', bis: '2025-10-03' },
+  { name: 'Herbstferien', von: '2025-10-27', bis: '2025-10-30' },
+  { name: 'Allerheiligen', von: '2025-11-01', bis: '2025-11-01' },
+  { name: 'Weihnachtsferien', von: '2025-12-22', bis: '2026-01-05' },
+  { name: 'Hl. Drei Könige', von: '2026-01-06', bis: '2026-01-06' },
+  { name: 'Osterferien', von: '2026-03-30', bis: '2026-04-11' },
+  { name: 'Tag der Arbeit', von: '2026-05-01', bis: '2026-05-01' },
+  { name: 'Christi Himmelfahrt', von: '2026-05-14', bis: '2026-05-14' },
+  { name: 'Pfingstferien', von: '2026-05-26', bis: '2026-06-05' },
+  { name: 'Sommerferien 2026', von: '2026-07-30', bis: '2026-09-12' },
+  { name: 'Tag der Dt. Einheit', von: '2026-10-03', bis: '2026-10-03' },
+  { name: 'Herbstferien', von: '2026-10-26', bis: '2026-10-31' },
+  { name: 'Allerheiligen', von: '2026-11-01', bis: '2026-11-01' },
+  { name: 'Weihnachtsferien', von: '2026-12-23', bis: '2027-01-09' },
+  { name: 'Osterferien', von: '2027-03-30', bis: '2027-04-03' },
+  { name: 'Christi Himmelfahrt', von: '2027-05-06', bis: '2027-05-06' },
+  { name: 'Pfingstmontag', von: '2027-05-17', bis: '2027-05-17' },
+  { name: 'Pfingstferien', von: '2027-05-18', bis: '2027-05-29' },
+  { name: 'Sommerferien 2027', von: '2027-07-29', bis: '2027-09-11' },
+];
+
+function isFerien(dateStr) {
+  return SCHULFERIEN_BAWUE.find(f => dateStr >= f.von && dateStr <= f.bis) || null;
+}
+function getFerienName(dateStr) {
+  const f = isFerien(dateStr);
+  return f ? f.name : null;
+}
+function isSchultag(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const dow = d.getDay();
+  if (dow === 0 || dow === 6) return false;
+  return !isFerien(dateStr);
+}
+
+// ============================================================
+// Schuljahr-Berechnung
+// ============================================================
+function getSchuljahr(date) {
+  const d = date || new Date();
+  const year = d.getFullYear();
+  const month = d.getMonth();
+  if (month >= 8) return { start: year, end: year + 1, label: `${year}/${year + 1}` };
+  return { start: year - 1, end: year, label: `${year - 1}/${year}` };
+}
+function getSchuljahrRange(sj) {
+  return { startDate: `${sj.start}-09-01`, endDate: `${sj.end}-07-31` };
+}
+function getAllSchulwochen(sj) {
+  const range = getSchuljahrRange(sj);
+  const start = getMonday(new Date(range.startDate + 'T00:00:00'));
+  const endDate = new Date(range.endDate + 'T00:00:00');
+  const weeks = [];
+  let current = new Date(start);
+  while (current <= endDate) {
+    const friday = addDays(current, 4);
+    const monStr = fmtDate(current);
+    const friStr = fmtDate(friday);
+    const weekDays = Array.from({length: 5}, (_, i) => fmtDate(addDays(current, i)));
+    const ferienDays = weekDays.filter(d => isFerien(d));
+    const ferienName = ferienDays.length >= 3 ? getFerienName(ferienDays[0]) : null;
+    weeks.push({ montag: new Date(current), monStr, friStr, kw: getKW(current), isFerien: ferienDays.length >= 3, ferienName, weekDays });
+    current = addDays(current, 7);
+  }
+  return weeks;
+}
+
+// ============================================================
+// API Service (mit Timeout + bessere Fehler)
+// ============================================================
+const ERROR_MAP = {
+  'Failed to fetch': 'Keine Verbindung zum Server. Bitte Internetverbindung pruefen.',
+  'NetworkError': 'Netzwerkfehler. Bitte spaeter erneut versuchen.',
+};
+
+// ── Stale-While-Revalidate Cache ──────────────
+const API_CACHE_PREFIX = 'ipad_cache_';
+const API_CACHE_MAX_AGE = 10 * 60 * 1000; // 10 min — danach Hintergrund-Refresh
+
+// Event-System für Background-Refresh → UI-Update (Fix K1)
+const _cacheListeners = new Map();
+function onCacheUpdate(key, callback) {
+  if (!_cacheListeners.has(key)) _cacheListeners.set(key, new Set());
+  _cacheListeners.get(key).add(callback);
+  return () => _cacheListeners.get(key)?.delete(callback);
+}
+function _notifyCacheUpdate(key, data) {
+  _cacheListeners.get(key)?.forEach(cb => { try { cb(data); } catch {} });
+}
+
+function getCacheKey(action, params) {
+  return API_CACHE_PREFIX + action + '_' + Object.entries(params).sort().map(([k,v]) => k+'='+v).join('&');
+}
+
+function getCache(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const { data, ts } = JSON.parse(raw);
+    return { data, ts, age: Date.now() - ts };
+  } catch { return null; }
+}
+
+function getCacheTimestamp(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw).ts;
+  } catch { return null; }
+}
+
+function setCache(key, data) {
+  try { localStorage.setItem(key, JSON.stringify({ data, ts: Date.now() })); } catch {}
+}
+
+function invalidateCache(action, params) {
+  if (action) {
+    try { localStorage.removeItem(getCacheKey(action, params || {})); } catch {}
+  } else {
+    // Alle API-Caches löschen
+    try {
+      Object.keys(localStorage).filter(k => k.startsWith(API_CACHE_PREFIX)).forEach(k => localStorage.removeItem(k));
+    } catch {}
+  }
+}
+
+async function apiGet(action, params = {}, timeoutMs = 15000) {
+  if (!API_URL) throw new Error('API URL nicht konfiguriert');
+  const cacheKey = getCacheKey(action, params);
+  const cached = getCache(cacheKey);
+
+  const url = new URL(API_URL);
+  url.searchParams.set('action', action);
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+
+  // Sofort gecachte Daten liefern + im Hintergrund aktualisieren
+  if (cached && cached.age < 30 * 60 * 1000) {
+    // Hintergrund-Refresh wenn älter als 10 min → UI wird via Event aktualisiert
+    if (cached.age > API_CACHE_MAX_AGE) {
+      fetch(url.toString()).then(r => r.ok ? r.json() : null).then(d => {
+        if (d && !d.error) {
+          setCache(cacheKey, d);
+          _notifyCacheUpdate(cacheKey, d); // Fix K1: UI benachrichtigen!
+        }
+      }).catch(() => {});
+    }
+    return cached.data;
+  }
+
+  const controller = new AbortController();
+  const tid = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url.toString(), { signal: controller.signal });
+    clearTimeout(tid);
+    if (!res.ok) {
+      if (res.status === 403) throw new Error('Zugriff verweigert. Falsche API-URL?');
+      if (res.status >= 500) throw new Error('Server-Fehler. Bitte spaeter erneut versuchen.');
+      throw new Error(`HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    if (data && data.error) throw new Error(data.error);
+    setCache(cacheKey, data);
+    return data;
+  } catch (e) {
+    clearTimeout(tid);
+    // Bei Fehler: gecachte Daten als Fallback (auch wenn alt)
+    if (cached) return cached.data;
+    if (e.name === 'AbortError') throw new Error('Zeitüberschreitung — Server antwortet nicht.');
+    const mapped = Object.entries(ERROR_MAP).find(([k]) => e.message.includes(k));
+    if (mapped) throw new Error(mapped[1]);
+    throw e;
+  }
+}
+
+async function apiPost(action, data, timeoutMs = 20000) {
+  if (!API_URL) throw new Error('API URL nicht konfiguriert');
+  const controller = new AbortController();
+  const tid = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action, ...data }),
+      signal: controller.signal,
+    });
+    clearTimeout(tid);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const result = await res.json();
+    if (result && result.error) throw new Error(result.error);
+    // Nach jeder Schreiboperation: Cache invalidieren
+    invalidateCache();
+    return result;
+  } catch (e) {
+    clearTimeout(tid);
+    if (e.name === 'AbortError') throw new Error('Zeitüberschreitung — Server antwortet nicht.');
+    throw e;
+  }
+}
+
+// ============================================================
+// Helpers
+// ============================================================
+function getMonday(d) {
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+  date.setDate(diff);
+  date.setHours(0,0,0,0);
+  return date;
+}
+function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
+function fmtDate(d) { return d.toISOString().split('T')[0]; }
+function fmtDateShort(d) {
+  const days = ['So','Mo','Di','Mi','Do','Fr','Sa'];
+  return `${days[d.getDay()]} ${d.getDate()}.${d.getMonth()+1}.`;
+}
+function fmtDateLong(s) {
+  const d = new Date(s + 'T00:00:00');
+  const days = ['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'];
+  return `${days[d.getDay()]}, ${d.getDate()}.${d.getMonth()+1}.${d.getFullYear()}`;
+}
+function getKW(d) {
+  const date = new Date(d);
+  date.setHours(0,0,0,0);
+  date.setDate(date.getDate() + 3 - (date.getDay() + 6) % 7);
+  const week1 = new Date(date.getFullYear(), 0, 4);
+  return 1 + Math.round(((date - week1) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7);
+}
+function kofferColor(id) {
+  if (!id) return 'koffer-default';
+  const letter = id.replace('K-','').charAt(0).toUpperCase();
+  if (letter === 'A') return 'koffer-a';
+  if (letter === 'B') return 'koffer-b';
+  if (letter === 'C') return 'koffer-c';
+  return 'koffer-default';
+}
+function kofferLabel(id, kofferList) {
+  const k = kofferList.find(k => k.id === id);
+  return k ? k.bezeichnung : id;
+}
+
+function generateSeriesDates(startDate, count) {
+  const dates = [];
+  let d = new Date(startDate + 'T00:00:00');
+  let attempts = 0;
+  while (dates.length < count && attempts < 200) {
+    const ds = fmtDate(d);
+    if (isSchultag(ds)) dates.push(ds);
+    d = addDays(d, 7);
+    attempts++;
+  }
+  return dates;
+}
+
+function generateSchuljahrDates(startDate) {
+  const sj = getSchuljahr(new Date(startDate + 'T00:00:00'));
+  const range = getSchuljahrRange(sj);
+  const dates = [];
+  let d = new Date(startDate + 'T00:00:00');
+  const end = new Date(range.endDate + 'T00:00:00');
+  while (d <= end) {
+    const ds = fmtDate(d);
+    if (isSchultag(ds)) dates.push(ds);
+    d = addDays(d, 7);
+  }
+  return dates;
+}
+
+// ============================================================
+// Confirm Dialog Component
+// ============================================================
+function ConfirmDialog({ title, message, confirmText, cancelText, onConfirm, onCancel, danger }) {
+  return html`
+    <div class="confirm-overlay" onClick=${e => { if (e.target === e.currentTarget) onCancel(); }}>
+      <div class="confirm-box">
+        <h3>${title}</h3>
+        <p>${message}</p>
+        <div class="confirm-btns">
+          <button class="confirm-cancel" onClick=${onCancel}>${cancelText || 'Abbrechen'}</button>
+          <button class=${danger ? 'confirm-ok' : 'btn-book'} style=${danger ? '' : 'padding:12px;'}
+            onClick=${onConfirm}>${confirmText || 'OK'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// Toast Component (mit Undo-Support)
+// ============================================================
+function Toast({ message, type, onDone, onUndo, undoLabel }) {
+  const [remaining, setRemaining] = useState(undoLabel ? 5 : 3);
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setRemaining(r => {
+        if (r <= 1) { clearInterval(iv); setTimeout(onDone, 100); return 0; }
+        return r - 1;
+      });
+    }, 1000);
+    return () => clearInterval(iv);
+  }, []);
+  return html`
+    <div class="toast ${type === 'error' ? 'toast-error' : 'toast-success'}">
+      <span>${message}</span>
+      ${onUndo && remaining > 0 && html`
+        <button class="toast-btn" onClick=${() => { onUndo(); onDone(); }}>
+          ${undoLabel || 'Rückgängig'} (${remaining}s)
+        </button>
+      `}
+    </div>
+  `;
+}
+
+// ============================================================
+// Admin Login Modal (jetzt via POST)
+// ============================================================
+function AdminLoginModal({ onSuccess, onClose }) {
+  const [pw, setPw] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleLogin = async () => {
+    setChecking(true);
+    setError('');
+    try {
+      const result = await apiPost('checkAdmin', { password: pw });
+      if (result.isAdmin) {
+        onSuccess(pw);
+      } else {
+        setError(result.error || 'Falsches Passwort');
+      }
+    } catch (e) {
+      setError(e.message);
+    }
+    setChecking(false);
+  };
+
+  return html`
+    <div class="modal-overlay" onClick=${e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div class="modal" style="max-width: 360px;">
+        <div class="modal-handle"></div>
+        <h2>Admin-Login</h2>
+        <div class="form-group">
+          <label class="form-label">Admin-Passwort</label>
+          <input class="form-input" type="password" placeholder="Passwort eingeben"
+            value=${pw} onInput=${e => setPw(e.target.value)}
+            onKeyPress=${e => e.key === 'Enter' && handleLogin()} />
+          ${error && html`<div style="color: var(--red); font-size: 13px; margin-top: 4px;">${error}</div>`}
+        </div>
+        <button class="btn-book" onClick=${handleLogin} disabled=${checking || !pw}>
+          ${checking ? html`<span class="spinner"></span>` : 'Anmelden'}
+        </button>
+        <p style="margin-top:12px; font-size:12px; color: var(--blue); text-align:center;">
+          Passwort steht im Google Sheet unter "Einstellungen"
+        </p>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// Main App
+// ============================================================
+function App() {
+  const [user, setUser] = useState(storage.getItem('ipad_user') || '');
+  const [userPin, setUserPin] = useState(storage.getItem('ipad_pin') || '');
+  const [tab, setTab] = useState('week');
+  const [weekStart, setWeekStart] = useState(getMonday(new Date()));
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState({ koffer: [], stunden: [], lehrkraefte: [], buchungen: [] });
+  const [modal, setModal] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [apiUrl, setApiUrl] = useState(API_URL);
+  const [showSettings, setShowSettings] = useState(!API_URL);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminPw, setAdminPw] = useState('');
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState(null);
+  const [dataTimestamp, setDataTimestamp] = useState(null); // H1: Zeitstempel der Daten
+  const [isRefreshing, setIsRefreshing] = useState(false); // H1: Hintergrund-Refresh aktiv
+
+  // ── Hub-Auth: postMessage-Listener ──────────────
+  useEffect(() => {
+    const isInHub = window.parent !== window;
+    const handleHubAuth = (event) => {
+      // Nur vom Hub-Origin akzeptieren
+      if (!event.origin.includes('benditot.github.io') && event.origin !== window.location.origin) return;
+      if (event.data?.type === 'KRS_HUB_AUTH' && event.data?.hub_verified) {
+        const hubUser = event.data.user;
+        if (hubUser?.lehrkraft_name || hubUser?.display_name) {
+          const name = hubUser.lehrkraft_name || (hubUser.display_name ? hubUser.display_name.split(' ').pop() : '') || hubUser.kuerzel || '';
+          storage.setItem('ipad_user', name);
+          storage.setItem('ipad_pin', '');
+          setUser(name);
+          setUserPin('');
+        }
+      }
+    };
+    window.addEventListener('message', handleHubAuth);
+    // Bei Hub-Einbettung: Auth anfragen
+    if (isInHub) {
+      window.parent.postMessage({ type: 'KRS_HUB_REQUEST_AUTH', moduleId: 'buchung' }, '*');
+    }
+    return () => window.removeEventListener('message', handleHubAuth);
+  }, []);
+
+  // Load data
+  const loadData = useCallback(async () => {
+    if (!apiUrl) { setLoading(false); setShowSettings(true); return; }
+    setLoading(true);
+    try {
+      const result = await apiGet('getAll', { date: fmtDate(weekStart) });
+      setData(result);
+      // H1: Zeitstempel aktualisieren
+      const cKey = getCacheKey('getAll', { date: fmtDate(weekStart) });
+      setDataTimestamp(getCacheTimestamp(cKey) || Date.now());
+    } catch (e) {
+      setToast({ message: 'Laden fehlgeschlagen: ' + e.message, type: 'error' });
+    }
+    setLoading(false);
+  }, [weekStart, apiUrl]);
+
+  useEffect(() => { if (apiUrl) loadData(); }, [loadData, user]);
+
+  // K1 Fix: Background-Refresh → UI automatisch aktualisieren
+  useEffect(() => {
+    const cKey = getCacheKey('getAll', { date: fmtDate(weekStart) });
+    const unsub = onCacheUpdate(cKey, (freshData) => {
+      setData(freshData);
+      setDataTimestamp(Date.now());
+      setIsRefreshing(false);
+    });
+    return unsub;
+  }, [weekStart]);
+
+  // Auto-refresh every 5 min
+  useEffect(() => {
+    if (!apiUrl || !user) return;
+    const iv = setInterval(loadData, 5 * 60 * 1000);
+    return () => clearInterval(iv);
+  }, [loadData, user]);
+
+  // Week navigation
+  const prevWeek = () => setWeekStart(addDays(weekStart, -7));
+  const nextWeek = () => setWeekStart(addDays(weekStart, 7));
+  const goToday = () => setWeekStart(getMonday(new Date()));
+
+  // Booking action
+  const handleBook = async (bookingData) => {
+    try {
+      const result = await apiPost('book', { data: { ...bookingData, lehrkraft: user, pin: userPin } });
+      setToast({ message: 'Buchung erfolgreich!', type: 'success' });
+      setModal(null);
+      loadData();
+    } catch (e) {
+      setToast({ message: e.message, type: 'error' });
+    }
+  };
+
+  const handleBookSeries = async (seriesData) => {
+    try {
+      const result = await apiPost('bookSeries', { data: { ...seriesData, lehrkraft: user, pin: userPin } });
+      setToast({ message: result.message, type: 'success' });
+      setModal(null);
+      loadData();
+    } catch (e) {
+      setToast({ message: e.message, type: 'error' });
+    }
+  };
+
+  const handleCancel = async (id) => {
+    setConfirmDialog({
+      title: 'Buchung stornieren?',
+      message: 'Möchtest du diese Buchung wirklich stornieren?',
+      confirmText: 'Ja, stornieren',
+      danger: true,
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          const payload = { id, lehrkraft: user, pin: userPin };
+          if (isAdmin) payload.adminPassword = adminPw;
+          const result = await apiPost('cancel', payload);
+          setToast({ message: 'Buchung storniert.', type: 'success' });
+          setModal(null);
+          loadData();
+        } catch (e) {
+          setToast({ message: e.message, type: 'error' });
+        }
+      },
+      onCancel: () => setConfirmDialog(null),
+    });
+  };
+
+  const handleCancelSeries = async (seriesId) => {
+    setConfirmDialog({
+      title: 'Gesamte Serie stornieren?',
+      message: 'Alle zukünftigen Buchungen dieser Serie werden storniert. Fortfahren?',
+      confirmText: 'Serie stornieren',
+      danger: true,
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          const payload = { seriesId, lehrkraft: user, pin: userPin };
+          if (isAdmin) payload.adminPassword = adminPw;
+          const result = await apiPost('cancelSeries', payload);
+          setToast({ message: result.message, type: 'success' });
+          setModal(null);
+          loadData();
+        } catch (e) {
+          setToast({ message: e.message, type: 'error' });
+        }
+      },
+      onCancel: () => setConfirmDialog(null),
+    });
+  };
+
+  const handleAdminLogin = (password) => {
+    setIsAdmin(true);
+    setAdminPw(password);
+    setShowAdminLogin(false);
+    setToast({ message: 'Admin-Modus aktiviert', type: 'success' });
+  };
+
+  const handleLogout = () => {
+    setConfirmDialog({
+      title: 'Abmelden?',
+      message: 'Möchtest du dich wirklich abmelden?',
+      confirmText: 'Ja, abmelden',
+      danger: false,
+      onConfirm: () => {
+        setConfirmDialog(null);
+        storage.removeItem('ipad_user');
+        storage.removeItem('ipad_pin');
+        setUser('');
+        setUserPin('');
+        setIsAdmin(false);
+        setAdminPw('');
+      },
+      onCancel: () => setConfirmDialog(null),
+    });
+  };
+
+  // Settings Screen
+  if (showSettings) {
+    if (!isAdmin && user) {
+      return html`
+        <div class="header"><h1>iPad-Buchung KRS</h1></div>
+        <${AdminLoginModal}
+          onSuccess=${(pw) => { handleAdminLogin(pw); }}
+          onClose=${() => setShowSettings(false)} />
+      `;
+    }
+    return html`
+      <div class="header">
+        <h1>iPad-Buchung KRS</h1>
+        ${isAdmin && html`<span class="admin-badge">ADMIN</span>`}
+      </div>
+      <div class="login-screen">
+        <div style="font-size: 48px; margin-bottom: 16px;">⚙️</div>
+        <h2>Einrichtung</h2>
+        <p>Bitte die Google Apps Script Web-App-URL eintragen:</p>
+        <input class="form-input" style="max-width:320px; font-size:13px;" type="url"
+          placeholder="https://script.google.com/macros/s/.../exec"
+          value=${apiUrl}
+          onInput=${e => setApiUrl(e.target.value)} />
+        <button class="btn-book" style="max-width:320px;"
+          onClick=${() => {
+            storage.setItem('ipad_api_url', apiUrl);
+            setShowSettings(false);
+            location.reload();
+          }}
+          disabled=${!apiUrl}>Speichern & Starten</button>
+        <p style="margin-top:20px; font-size:12px; color: var(--gray);">
+          Die URL findest du im Apps Script unter Deploy > Manage deployments
+        </p>
+      </div>
+    `;
+  }
+
+  // Login Screen
+  if (!user) {
+    return html`
+      <div class="header"><h1>iPad-Buchung KRS</h1></div>
+      <${LoginScreen} lehrkraefte=${data.lehrkraefte || []}
+        onLogin=${(name, pin) => {
+          storage.setItem('ipad_user', name);
+          storage.setItem('ipad_pin', pin || '');
+          setUser(name);
+          setUserPin(pin || '');
+        }}
+        loading=${loading} apiUrl=${apiUrl} />
+    `;
+  }
+
+  const weekDays = Array.from({length: 5}, (_, i) => addDays(weekStart, i));
+  const todayStr = fmtDate(new Date());
+
+  return html`
+    <div class="header">
+      <h1>
+        <img class="header-logo" src="https://realschule-schriesheim.de/wp-content/uploads/2017/11/cropped-KRS_Schullogo.png" alt="KRS" onError=${(e) => e.target.style.display='none'} />
+        iPad-Buchung KRS ${isAdmin ? html`<span class="admin-badge">ADMIN</span>` : ''}
+      </h1>
+      <div class="header-actions">
+        ${dataTimestamp && html`<span class="data-timestamp" title="Zeitpunkt der angezeigten Daten">${new Date(dataTimestamp).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr</span>`}
+        <button class="header-btn ${isRefreshing ? 'spinning' : ''}" onClick=${() => { invalidateCache(); loadData(); }} title="Aktualisieren">↻</button>
+        <button class="header-btn" onClick=${() => { setModal({ type: 'book', datum: todayStr, stunde: '' }); }} title="Neue Buchung">+</button>
+      </div>
+    </div>
+
+    ${tab === 'week' && html`
+      <div class="week-nav">
+        ${tab === 'week' && html`
+          <button onClick=${prevWeek}>◀</button>
+          <span class="week-label">KW ${getKW(weekStart)} · ${fmtDateShort(weekStart)} – ${fmtDateShort(addDays(weekStart, 4))}</span>
+          <button onClick=${nextWeek}>▶</button>
+          <button class="today-btn" onClick=${goToday}>Heute</button>
+        `}
+      </div>
+    `}
+
+    <div class="content">
+      ${!loading && tab === 'week' && html`
+        <${LastMinuteBar} stunden=${data.stunden || []} koffer=${data.koffer || []}
+          buchungen=${data.buchungen || []} user=${user} userPin=${userPin}
+          today=${todayStr} onBook=${handleBook}
+          onToast=${(t) => setToast(t)} onReload=${loadData} />
+      `}
+
+      ${loading && html`<div class="loading-overlay"><div class="spinner"></div><span>Lade Daten...</span></div>`}
+
+      ${!loading && tab === 'week' && html`
+        <${WeekView} days=${weekDays} stunden=${data.stunden || []}
+          buchungen=${data.buchungen || []} koffer=${data.koffer || []}
+          today=${todayStr}
+          onSlotClick=${(datum, stunde) => setModal({ type: 'book', datum, stunde: String(stunde) })}
+          onBookingClick=${(b) => setModal({ type: 'detail', booking: b })} />
+      `}
+
+      ${!loading && tab === 'koffer' && html`
+        <${KofferView} koffer=${data.koffer || []} buchungen=${data.buchungen || []}
+          stunden=${data.stunden || []} today=${todayStr} />
+      `}
+
+      ${!loading && tab === 'mine' && html`
+        <${MeineView} buchungen=${(data.buchungen || []).filter(b => b.lehrkraft === user)}
+          koffer=${data.koffer || []} stunden=${data.stunden || []}
+          onCancel=${handleCancel} />
+      `}
+
+      ${!loading && tab === 'quarter' && html`
+        <${QuarterView} koffer=${data.koffer || []} apiUrl=${apiUrl}
+          onNavigateWeek=${(monday) => { setWeekStart(monday); setTab('week'); loadData(); }} />
+      `}
+
+      ${!loading && tab === 'year' && html`
+        <${YearView} koffer=${data.koffer || []} apiUrl=${apiUrl}
+          onNavigateWeek=${(monday) => { setWeekStart(monday); setTab('week'); loadData(); }} />
+      `}
+    </div>
+
+    ${modal && modal.type === 'book' && html`
+      <${BookingModal} datum=${modal.datum} stunde=${modal.stunde}
+        koffer=${data.koffer || []} stunden=${data.stunden || []}
+        buchungen=${data.buchungen || []} user=${user}
+        isAdmin=${isAdmin}
+        onBook=${handleBook} onBookSeries=${handleBookSeries}
+        onClose=${() => setModal(null)} />
+    `}
+
+    ${modal && modal.type === 'detail' && html`
+      <${DetailModal} booking=${modal.booking} koffer=${data.koffer || []}
+        stunden=${data.stunden || []} user=${user} isAdmin=${isAdmin}
+        onCancel=${handleCancel} onCancelSeries=${handleCancelSeries}
+        onClose=${() => setModal(null)} />
+    `}
+
+    ${showAdminLogin && html`
+      <${AdminLoginModal} onSuccess=${handleAdminLogin}
+        onClose=${() => setShowAdminLogin(false)} />
+    `}
+
+    <div class="tab-bar">
+      <button class="tab-item ${tab === 'week' ? 'active' : ''}" onClick=${() => setTab('week')}>
+        <span class="tab-icon">📅</span>Woche
+      </button>
+      <button class="tab-item ${tab === 'quarter' ? 'active' : ''}" onClick=${() => setTab('quarter')}>
+        <span class="tab-icon">🗓️</span>3 Monate
+      </button>
+      <button class="tab-item ${tab === 'koffer' ? 'active' : ''}" onClick=${() => setTab('koffer')}>
+        <span class="tab-icon">📦</span>Koffer
+      </button>
+      <button class="tab-item ${tab === 'mine' ? 'active' : ''}" onClick=${() => setTab('mine')}>
+        <span class="tab-icon">👤</span>Meine
+      </button>
+      <button class="tab-item ${tab === 'year' ? 'active' : ''}" onClick=${() => setTab('year')}>
+        <span class="tab-icon">📊</span>Schuljahr
+      </button>
+      <button class="tab-item ${isAdmin ? 'admin-tab' : ''}" onClick=${() => {
+        if (isAdmin) { setShowSettings(true); }
+        else { setShowAdminLogin(true); }
+      }}>
+        <span class="tab-icon">${isAdmin ? '⚙️' : '🔒'}</span>${isAdmin ? 'Admin' : 'Admin'}
+      </button>
+    </div>
+
+    ${confirmDialog && html`
+      <${ConfirmDialog} ...${confirmDialog} />
+    `}
+
+    ${toast && html`<${Toast} message=${toast.message} type=${toast.type}
+      onDone=${() => setToast(null)} onUndo=${toast.onUndo} undoLabel=${toast.undoLabel} />`}
+  `;
+}
+
+// ============================================================
+// Login Screen (mit Suchfeld statt Dropdown)
+// ============================================================
+function LoginScreen({ lehrkraefte, onLogin, loading, apiUrl }) {
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState('');
+  const [pin, setPin] = useState('');
+  const [showResults, setShowResults] = useState(false);
+  const [pinError, setPinError] = useState('');
+  const [checking, setChecking] = useState(false);
+  const inputRef = useRef(null);
+
+  const filtered = useMemo(() => {
+    if (!search) return lehrkraefte;
+    const s = search.toLowerCase();
+    return lehrkraefte.filter(l => l.name.toLowerCase().includes(s));
+  }, [search, lehrkraefte]);
+
+  const selectedTeacher = lehrkraefte.find(l => l.name === selected);
+
+  const handleSelect = (name) => {
+    setSelected(name);
+    setSearch(name);
+    setShowResults(false);
+    setPin('');
+    setPinError('');
+  };
+
+  const handleSubmit = async () => {
+    if (!selected) return;
+    // Wenn Lehrkraft PIN hat, validiere am Backend
+    if (selectedTeacher?.hatPin) {
+      if (!pin) { setPinError('Bitte PIN eingeben'); return; }
+      setChecking(true);
+      try {
+        const result = await apiPost('validatePin', { lehrkraft: selected, pin });
+        if (!result.valid) {
+          setPinError(result.error || 'Falscher PIN');
+          setChecking(false);
+          return;
+        }
+      } catch (e) {
+        setPinError(e.message);
+        setChecking(false);
+        return;
+      }
+      setChecking(false);
+    }
+    onLogin(selected, pin);
+  };
+
+  return html`
+    <div class="login-screen">
+      <img src="https://realschule-schriesheim.de/wp-content/uploads/2017/11/cropped-KRS_Schullogo.png" alt="KRS Logo" style="width:80px; height:80px; border-radius:16px; margin-bottom:12px; box-shadow:0 4px 12px rgba(0,0,0,.1);" onError=${(e) => e.target.style.display='none'} />
+      <h2>Willkommen</h2>
+      <p>Bitte wähle deinen Namen:</p>
+      ${loading
+        ? html`<div class="loading-overlay"><div class="spinner"></div><span>Lade Lehrkräfte...</span></div>`
+        : html`
+          <div class="search-container">
+            <input class="form-input" ref=${inputRef}
+              type="text" placeholder="Name suchen..."
+              value=${search}
+              onInput=${e => { setSearch(e.target.value); setSelected(''); setShowResults(true); }}
+              onFocus=${() => setShowResults(true)} />
+            ${showResults && filtered.length > 0 && search !== selected && html`
+              <div class="search-results">
+                ${filtered.map(l => html`
+                  <div class="search-item ${l.name === selected ? 'selected' : ''}"
+                    onClick=${() => handleSelect(l.name)}>
+                    ${l.name} ${l.hatPin ? '🔑' : ''}
+                  </div>
+                `)}
+              </div>
+            `}
+          </div>
+          ${selectedTeacher?.hatPin && html`
+            <div class="pin-row">
+              <input class="form-input" type="password" maxlength="8"
+                placeholder="PIN eingeben" value=${pin}
+                onInput=${e => { setPin(e.target.value); setPinError(''); }}
+                onKeyPress=${e => e.key === 'Enter' && handleSubmit()} />
+            </div>
+            ${pinError && html`<div style="color: var(--red); font-size: 13px; margin-top: 4px; max-width: 320px;">${pinError}</div>`}
+          `}
+          <button class="btn-book" disabled=${!selected || checking}
+            onClick=${handleSubmit}>
+            ${checking ? html`<span class="spinner" style="border-color:rgba(255,255,255,.3);border-top-color:white;"></span>` : 'Weiter'}
+          </button>
+        `
+      }
+    </div>
+  `;
+}
+
+// ============================================================
+// Week View
+// ============================================================
+function WeekView({ days, stunden, buchungen, koffer, today, onSlotClick, onBookingClick }) {
+  if (!stunden.length) return html`<div class="empty-state"><div class="icon">📅</div><p>Keine Stundendaten geladen</p></div>`;
+
+  const bookingMap = {};
+  buchungen.forEach(b => {
+    const von = parseInt(b.stunde);
+    const bis = parseInt(b.bisStunde || b.stunde);
+    for (let s = von; s <= bis; s++) {
+      const key = `${b.datum}_${s}`;
+      bookingMap[key] = b;
+    }
+  });
+
+  return html`
+    <div class="week-grid">
+      <table class="week-table">
+        <thead>
+          <tr>
+            <th>St.</th>
+            ${days.map(d => {
+              const ds = fmtDate(d);
+              const isToday = ds === today;
+              const ferien = isFerien(ds);
+              const cls = ferien ? 'ferien-col' : isToday ? 'today-col' : '';
+              return html`<th class=${cls}>${fmtDateShort(d)}${ferien ? html`<br/><span style="font-size:9px;font-weight:400;">${ferien.name}</span>` : ''}</th>`;
+            })}
+          </tr>
+        </thead>
+        <tbody>
+          ${stunden.filter(s => s.stunde <= 6).map(st => html`
+            <tr>
+              <td class="stunde-col">${st.stunde}</td>
+              ${days.map(d => {
+                const datum = fmtDate(d);
+                const ferien = isFerien(datum);
+
+                if (ferien) {
+                  return html`<td>
+                    <div class="slot slot-ferien">${st.stunde === 1 ? ferien.name : ''}</div>
+                  </td>`;
+                }
+
+                const key = `${datum}_${st.stunde}`;
+                const booking = bookingMap[key];
+                if (booking) {
+                  const color = kofferColor(booking.kofferId);
+                  return html`<td>
+                    <div class="slot slot-booked ${color}"
+                      onClick=${() => onBookingClick(booking)}>
+                      <div class="slot-teacher">${booking.lehrkraft}</div>
+                      <div class="slot-koffer">${kofferLabel(booking.kofferId, koffer)}</div>
+                      <div class="slot-room">${booking.raum}</div>
+                    </div>
+                  </td>`;
+                }
+                return html`<td>
+                  <div class="slot slot-free"
+                    onClick=${() => onSlotClick(datum, st.stunde)}
+                    title="Frei — antippen zum Buchen">
+                  </div>
+                </td>`;
+              })}
+            </tr>
+          `)}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+// ============================================================
+// Booking Modal (with Series option)
+// ============================================================
+function BookingModal({ datum, stunde, koffer, stunden, buchungen, user, isAdmin, onBook, onBookSeries, onClose }) {
+  const [form, setForm] = useState({
+    datum: datum || fmtDate(new Date()),
+    stunde: stunde || '',
+    bisStunde: stunde || '',
+    kofferId: '',
+    raum: '',
+    bemerkung: '',
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [serieMode, setSerieMode] = useState('none');
+
+  const isAvailable = useMemo(() => {
+    if (!form.kofferId || !form.stunde || !form.datum) return null;
+    const von = parseInt(form.stunde);
+    const bis = parseInt(form.bisStunde || form.stunde);
+    const conflict = buchungen.find(b => {
+      if (b.kofferId !== form.kofferId || b.datum !== form.datum) return false;
+      const bVon = parseInt(b.stunde);
+      const bBis = parseInt(b.bisStunde || b.stunde);
+      return von <= bBis && bis >= bVon;
+    });
+    return conflict ? conflict : true;
+  }, [form.kofferId, form.datum, form.stunde, form.bisStunde, buchungen]);
+
+  const seriesDates = useMemo(() => {
+    if (serieMode === 'none' || !form.datum) return [];
+    if (serieMode === '2') return generateSeriesDates(form.datum, 2);
+    if (serieMode === '3') return generateSeriesDates(form.datum, 3);
+    if (serieMode === '4') return generateSeriesDates(form.datum, 4);
+    if (serieMode === 'schuljahr') return generateSchuljahrDates(form.datum);
+    const dates = generateSchuljahrDates(form.datum);
+    const sj = getSchuljahr(new Date(form.datum + 'T00:00:00'));
+    const halbjahrEnd = `${sj.end}-01-31`;
+    if (form.datum <= halbjahrEnd) return dates.filter(d => d <= halbjahrEnd);
+    return dates;
+  }, [serieMode, form.datum]);
+
+  const handleSubmit = async () => {
+    if (!form.stunde || !form.kofferId) return;
+    setSubmitting(true);
+    if (serieMode !== 'none' && seriesDates.length > 1) {
+      await onBookSeries({
+        dates: seriesDates,
+        stunde: form.stunde,
+        bisStunde: form.bisStunde || form.stunde,
+        kofferId: form.kofferId,
+        raum: form.raum,
+        bemerkung: form.bemerkung,
+      });
+    } else {
+      await onBook({
+        ...form,
+        bisStunde: form.bisStunde || form.stunde,
+      });
+    }
+    setSubmitting(false);
+  };
+
+  const update = (key, val) => setForm(f => ({...f, [key]: val}));
+  const ferienWarning = isFerien(form.datum);
+
+  return html`
+    <div class="modal-overlay" onClick=${e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div class="modal">
+        <div class="modal-handle"></div>
+        <h2>Neue Buchung</h2>
+
+        <div class="form-group">
+          <label class="form-label">Datum</label>
+          <input class="form-input" type="date" value=${form.datum}
+            onInput=${e => update('datum', e.target.value)} />
+          <div style="font-size:12px; color: var(--gray); margin-top:2px;">
+            ${form.datum ? fmtDateLong(form.datum) : ''}
+          </div>
+          ${ferienWarning && html`
+            <div class="avail-badge avail-warning" style="margin-top:6px; font-size:13px; padding: 6px 12px;">
+              ⚠️ ${ferienWarning.name} — kein Unterricht!
+            </div>
+          `}
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Von Stunde</label>
+          <select class="form-select" value=${form.stunde}
+            onChange=${e => { update('stunde', e.target.value); if (!form.bisStunde || parseInt(e.target.value) > parseInt(form.bisStunde)) update('bisStunde', e.target.value); }}>
+            <option value="">— wählen —</option>
+            ${stunden.map(s => html`<option value=${s.stunde}>${s.bezeichnung} (${s.von}–${s.bis})</option>`)}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Bis Stunde</label>
+          <select class="form-select" value=${form.bisStunde}
+            onChange=${e => update('bisStunde', e.target.value)}>
+            ${stunden.filter(s => s.stunde >= parseInt(form.stunde || 1)).map(s =>
+              html`<option value=${s.stunde}>${s.bezeichnung}</option>`
+            )}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Koffer</label>
+          <select class="form-select" value=${form.kofferId}
+            onChange=${e => update('kofferId', e.target.value)}>
+            <option value="">— Koffer wählen —</option>
+            ${koffer.map(k => html`<option value=${k.id}>${k.bezeichnung} (${k.anzahlIpads} iPads) · ${k.standort}</option>`)}
+          </select>
+          ${isAvailable === true && html`
+            <div class="avail-badge avail-free">Verfügbar</div>
+          `}
+          ${isAvailable && isAvailable !== true && html`
+            <div class="avail-badge avail-taken">Belegt von ${isAvailable.lehrkraft} (St. ${isAvailable.stunde}${isAvailable.bisStunde > isAvailable.stunde ? '–'+isAvailable.bisStunde : ''})</div>
+          `}
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Raum</label>
+          <input class="form-input" type="text" placeholder="z.B. R 204"
+            value=${form.raum} onInput=${e => update('raum', e.target.value)} />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Bemerkung (optional)</label>
+          <input class="form-input" type="text" placeholder="z.B. Musikprojekt Kl. 8b"
+            value=${form.bemerkung} onInput=${e => update('bemerkung', e.target.value)} />
+        </div>
+
+        <!-- Serie -->
+        <div class="form-group" style="border-top: 1px solid var(--gray-border); padding-top: 12px;">
+          <label class="form-label" style="color: var(--purple);">Serie erstellen</label>
+          <select class="form-select" value=${serieMode}
+            onChange=${e => setSerieMode(e.target.value)}
+            style="border-color: ${serieMode !== 'none' ? 'var(--purple)' : 'var(--gray-border)'};">
+            <option value="none">Einzelbuchung</option>
+            <option value="2">Serie: 2 Wochen</option>
+            <option value="3">Serie: 3 Wochen</option>
+            <option value="4">Serie: 4 Wochen</option>
+            ${isAdmin && html`<option value="halbjahr">Serie: bis Halbjahresende</option>`}
+            ${isAdmin && html`<option value="schuljahr">Serie: ganzes Schuljahr</option>`}
+          </select>
+
+          ${serieMode !== 'none' && seriesDates.length > 0 && html`
+            <div class="series-preview">
+              <div class="sp-title">${seriesDates.length} Termine (${serieMode === '2' ? '2 Wochen' : serieMode === '3' ? '3 Wochen' : serieMode === '4' ? '4 Wochen' : serieMode === 'halbjahr' ? 'bis Halbjahresende' : 'ganzes Schuljahr'})</div>
+              ${seriesDates.slice(0, 12).map(d => html`
+                <div class="sp-date">${fmtDateLong(d)}</div>
+              `)}
+              ${seriesDates.length > 12 && html`<div class="sp-date" style="font-style:italic;">... und ${seriesDates.length - 12} weitere</div>`}
+            </div>
+          `}
+        </div>
+
+        <div style="font-size: 13px; color: var(--gray); margin-bottom: 8px;">
+          Gebucht als: <strong>${user}</strong>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-book" onClick=${handleSubmit}
+            disabled=${submitting || !form.stunde || !form.kofferId || (serieMode === 'none' && isAvailable && isAvailable !== true)}
+            style="${serieMode !== 'none' ? 'background: var(--purple);' : ''} ${ferienWarning && serieMode === 'none' ? 'background: var(--yellow);' : ''}">
+            ${submitting ? html`<span class="spinner"></span>`
+              : ferienWarning && serieMode === 'none' ? 'Trotzdem buchen (Ferien!)'
+              : serieMode !== 'none' ? `Serie buchen (${seriesDates.length}x)`
+              : 'BUCHEN'}
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// Detail Modal (mit Serien-Stornierung)
+// ============================================================
+function DetailModal({ booking, koffer, stunden, user, isAdmin, onCancel, onCancelSeries, onClose }) {
+  const canCancel = booking.lehrkraft === user || isAdmin;
+  return html`
+    <div class="modal-overlay" onClick=${e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div class="modal">
+        <div class="modal-handle"></div>
+        <h2>Buchungsdetails</h2>
+
+        <div style="margin-bottom: 16px;">
+          <div style="font-size: 13px; color: var(--gray);">Datum</div>
+          <div style="font-size: 16px; font-weight: 600;">${fmtDateLong(booking.datum)}</div>
+        </div>
+        <div style="margin-bottom: 16px;">
+          <div style="font-size: 13px; color: var(--gray);">Stunde</div>
+          <div style="font-size: 16px; font-weight: 600;">
+            ${booking.stunde}. Stunde${booking.bisStunde > booking.stunde ? ` – ${booking.bisStunde}. Stunde` : ''}
+          </div>
+        </div>
+        <div style="margin-bottom: 16px;">
+          <div style="font-size: 13px; color: var(--gray);">Koffer</div>
+          <div style="font-size: 16px; font-weight: 600;">${kofferLabel(booking.kofferId, koffer)}</div>
+        </div>
+        <div style="margin-bottom: 16px;">
+          <div style="font-size: 13px; color: var(--gray);">Lehrkraft</div>
+          <div style="font-size: 16px; font-weight: 600;">${booking.lehrkraft}</div>
+        </div>
+        ${booking.raum && html`
+          <div style="margin-bottom: 16px;">
+            <div style="font-size: 13px; color: var(--gray);">Raum</div>
+            <div style="font-size: 16px; font-weight: 600;">${booking.raum}</div>
+          </div>
+        `}
+        ${booking.bemerkung && html`
+          <div style="margin-bottom: 16px;">
+            <div style="font-size: 13px; color: var(--gray);">Bemerkung</div>
+            <div style="font-size: 16px;">${booking.bemerkung}</div>
+          </div>
+        `}
+        ${booking.serienId && html`
+          <div style="margin-bottom: 16px;">
+            <span class="serie-badge">Teil einer Serie</span>
+          </div>
+        `}
+
+        ${canCancel && html`
+          <button class="btn-cancel-booking" onClick=${() => onCancel(booking.id)}>
+            ${isAdmin && booking.lehrkraft !== user ? 'Admin: Buchung stornieren' : 'Buchung stornieren'}
+          </button>
+          ${booking.serienId && html`
+            <button class="btn-cancel-series" onClick=${() => onCancelSeries(booking.serienId)}>
+              ${isAdmin && booking.lehrkraft !== user ? 'Admin: Gesamte Serie stornieren' : 'Gesamte Serie stornieren'}
+            </button>
+          `}
+        `}
+        ${!canCancel && html`
+          <p style="font-size: 12px; color: var(--gray); text-align: center; margin-top: 12px;">
+            Nur ${booking.lehrkraft} oder ein Admin kann diese Buchung stornieren.
+          </p>
+        `}
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// Koffer View
+// ============================================================
+function KofferView({ koffer, buchungen, stunden, today }) {
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  function getCurrentBooking(kofferId) {
+    return buchungen.find(b => {
+      if (b.kofferId !== kofferId || b.datum !== today) return false;
+      const vonStd = stunden.find(s => s.stunde === parseInt(b.stunde));
+      const bisStd = stunden.find(s => s.stunde === parseInt(b.bisStunde || b.stunde));
+      if (!vonStd || !bisStd) return false;
+      const [vh, vm] = vonStd.von.split(':').map(Number);
+      const [bh, bm] = bisStd.bis.split(':').map(Number);
+      return currentMinutes >= vh*60+vm && currentMinutes <= bh*60+bm;
+    });
+  }
+
+  function getNextBooking(kofferId) {
+    return buchungen
+      .filter(b => b.kofferId === kofferId && b.datum >= today && b.status !== 'storniert')
+      .sort((a,b) => a.datum.localeCompare(b.datum) || a.stunde - b.stunde)
+      .find(b => {
+        if (b.datum > today) return true;
+        const std = stunden.find(s => s.stunde === parseInt(b.stunde));
+        if (!std) return false;
+        const [h, m] = std.von.split(':').map(Number);
+        return h*60+m > currentMinutes;
+      });
+  }
+
+  if (!koffer.length) return html`<div class="empty-state"><div class="icon">📦</div><p>Keine Koffer geladen</p></div>`;
+
+  return html`
+    <div class="koffer-list">
+      ${koffer.map(k => {
+        const current = getCurrentBooking(k.id);
+        const next = getNextBooking(k.id);
+        const borderColor = k.id === 'K-A' ? 'var(--koffer-a)' : k.id === 'K-B' ? 'var(--koffer-b)' : 'var(--koffer-c)';
+        return html`
+          <div class="koffer-card" style="border-left-color: ${borderColor}">
+            <h3>📦 ${k.bezeichnung} — ${k.anzahlIpads} iPads</h3>
+            <div class="meta">${k.wagen} · ${k.standort}</div>
+            ${k.bemerkung && html`<div class="meta" style="color: var(--yellow);">⚠️ ${k.bemerkung}</div>`}
+            ${current
+              ? html`<span class="status-badge badge-booked">Gebucht: ${current.lehrkraft} (St. ${current.stunde}, ${current.raum})</span>`
+              : html`<span class="status-badge badge-free">Verfügbar</span>`
+            }
+            ${next && html`
+              <div class="meta" style="margin-top:4px;">
+                Nächste Buchung: ${next.datum === today ? '' : next.datum + ' '}St. ${next.stunde} (${next.lehrkraft})
+              </div>
+            `}
+          </div>
+        `;
+      })}
+    </div>
+  `;
+}
+
+// ============================================================
+// Meine Buchungen View
+// ============================================================
+function MeineView({ buchungen, koffer, stunden, onCancel }) {
+  if (!buchungen.length) return html`<div class="empty-state"><div class="icon">👤</div><p>Keine aktuellen Buchungen</p></div>`;
+
+  const sorted = [...buchungen].sort((a,b) => a.datum.localeCompare(b.datum) || a.stunde - b.stunde);
+
+  return html`
+    <div class="my-bookings">
+      <h3 style="padding: 8px 0; font-size: 16px;">Meine Buchungen</h3>
+      ${sorted.map(b => html`
+        <div class="booking-card">
+          <div class="booking-info">
+            <div class="booking-date">
+              ${fmtDateLong(b.datum)}
+              ${b.serienId ? html`<span class="serie-badge">Serie</span>` : ''}
+            </div>
+            <div class="booking-detail">
+              St. ${b.stunde}${b.bisStunde > b.stunde ? '–' + b.bisStunde : ''} ·
+              ${kofferLabel(b.kofferId, koffer)} · ${b.raum || 'kein Raum'}
+            </div>
+            ${b.bemerkung && html`<div class="booking-detail">${b.bemerkung}</div>`}
+          </div>
+          <div class="booking-actions">
+            <button class="btn-small btn-storno" onClick=${() => onCancel(b.id)}>Stornieren</button>
+          </div>
+        </div>
+      `)}
+    </div>
+  `;
+}
+
+// ============================================================
+// Last-Minute Schnellbuchung
+// ============================================================
+function LastMinuteBar({ stunden, koffer, buchungen, user, userPin, today, onBook, onToast, onReload }) {
+  const [showModal, setShowModal] = useState(false);
+  const [booking, setBooking] = useState(false);
+  const [raum, setRaum] = useState('');
+
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const todayStr = fmtDate(now);
+  const isWeekday = now.getDay() >= 1 && now.getDay() <= 5;
+
+  // Determine current block
+  const currentBlock = useMemo(() => {
+    if (!isWeekday || isFerien(todayStr)) return null;
+    // Blocks: 1-2, 3-4, 5, 6
+    const blocks = [
+      { name: '1.–2. Stunde', stunden: [1, 2], emoji: '🌅' },
+      { name: '3.–4. Stunde', stunden: [3, 4], emoji: '☀️' },
+      { name: '5. Stunde', stunden: [5], emoji: '🌤️' },
+      { name: '6. Stunde', stunden: [6], emoji: '🌇' },
+    ];
+    for (const block of blocks) {
+      const firstStd = stunden.find(s => s.stunde === block.stunden[0]);
+      const lastStd = stunden.find(s => s.stunde === block.stunden[block.stunden.length - 1]);
+      if (!firstStd || !lastStd) continue;
+      const [vh, vm] = firstStd.von.split(':').map(Number);
+      const [bh, bm] = lastStd.bis.split(':').map(Number);
+      // Show block if we're within 15 min before start until end
+      if (currentMinutes >= (vh * 60 + vm - 15) && currentMinutes <= (bh * 60 + bm)) {
+        return { ...block, von: firstStd.von, bis: lastStd.bis, vonStunde: block.stunden[0], bisStunde: block.stunden[block.stunden.length - 1] };
+      }
+    }
+    // Show next upcoming block
+    for (const block of blocks) {
+      const firstStd = stunden.find(s => s.stunde === block.stunden[0]);
+      if (!firstStd) continue;
+      const [vh, vm] = firstStd.von.split(':').map(Number);
+      if (currentMinutes < vh * 60 + vm) {
+        const lastStd = stunden.find(s => s.stunde === block.stunden[block.stunden.length - 1]);
+        return { ...block, von: firstStd.von, bis: lastStd?.bis || firstStd.bis, vonStunde: block.stunden[0], bisStunde: block.stunden[block.stunden.length - 1], upcoming: true };
+      }
+    }
+    return null;
+  }, [stunden, currentMinutes, isWeekday, todayStr]);
+
+  // Available Koffer for current block
+  const kofferStatus = useMemo(() => {
+    if (!currentBlock) return [];
+    return koffer.map(k => {
+      const conflict = buchungen.find(b => {
+        if (b.kofferId !== k.id || b.datum !== todayStr) return false;
+        const bVon = parseInt(b.stunde);
+        const bBis = parseInt(b.bisStunde || b.stunde);
+        return currentBlock.vonStunde <= bBis && currentBlock.bisStunde >= bVon;
+      });
+      return { ...k, free: !conflict, bookedBy: conflict?.lehrkraft || null };
+    });
+  }, [currentBlock, koffer, buchungen, todayStr]);
+
+  const freeCount = kofferStatus.filter(k => k.free).length;
+
+  const handleQuickBook = async (kofferId) => {
+    if (booking) return;
+    setBooking(true);
+    try {
+      await apiPost('book', { data: {
+        datum: todayStr,
+        stunde: String(currentBlock.vonStunde),
+        bisStunde: String(currentBlock.bisStunde),
+        kofferId,
+        raum: raum || '',
+        bemerkung: 'Last-Minute-Buchung',
+        lehrkraft: user,
+        pin: userPin,
+      }});
+      onToast({ message: '⚡ Last-Minute gebucht!', type: 'success' });
+      setShowModal(false);
+      onReload();
+    } catch (e) {
+      onToast({ message: e.message, type: 'error' });
+    }
+    setBooking(false);
+  };
+
+  if (!currentBlock || !isWeekday || isFerien(todayStr)) return null;
+
+  const funPhrases = ['Jetzt schnappen! 🎯', 'iPads frei! 🚀', 'Zugreifen! ⚡', 'Schnell buchen! 🏃'];
+  const phrase = funPhrases[Math.floor(currentMinutes / 15) % funPhrases.length];
+
+  return html`
+    <div class="last-minute-bar" onClick=${() => setShowModal(true)}>
+      <span class="last-minute-icon">${currentBlock.upcoming ? '⏰' : '⚡'}</span>
+      <div class="last-minute-text">
+        <div class="last-minute-title">${currentBlock.upcoming ? 'Gleich:' : 'JETZT:'} ${currentBlock.name}</div>
+        <div class="last-minute-sub">${currentBlock.von}–${currentBlock.bis} · ${freeCount}/${koffer.length} Koffer frei</div>
+      </div>
+      <div class="last-minute-badge">${phrase}</div>
+    </div>
+
+    ${showModal && html`
+      <div class="modal-overlay" onClick=${e => { if (e.target === e.currentTarget) setShowModal(false); }}>
+        <div class="modal">
+          <div class="modal-handle"></div>
+          <div class="last-minute-modal-header">
+            <div class="icon">⚡</div>
+            <h2>Last-Minute-Buchung</h2>
+            <div class="block-info">${currentBlock.emoji} ${currentBlock.name} (${currentBlock.von}–${currentBlock.bis})</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Raum (optional)</label>
+            <input class="form-input" type="text" placeholder="z.B. R 204"
+              value=${raum} onInput=${e => setRaum(e.target.value)} />
+          </div>
+
+          <div style="font-size:13px; font-weight:700; color:var(--gray); margin: 12px 0 8px;">
+            Koffer antippen zum Buchen:
+          </div>
+
+          ${kofferStatus.map(k => {
+            const borderColor = k.id === 'K-A' ? 'var(--koffer-a)' : k.id === 'K-B' ? 'var(--koffer-b)' : 'var(--koffer-c)';
+            return html`
+              <button class="koffer-quick-btn ${k.free ? '' : 'taken'}"
+                style="border-left: 4px solid ${borderColor};"
+                onClick=${() => k.free && handleQuickBook(k.id)}
+                disabled=${!k.free || booking}>
+                <span class="kq-icon">${k.free ? '📦' : '🔒'}</span>
+                <div>
+                  <div class="kq-name">${k.bezeichnung}</div>
+                  <div class="kq-info">${k.anzahlIpads} iPads · ${k.standort}</div>
+                </div>
+                <span class="kq-status ${k.free ? 'kq-free' : 'kq-taken'}">
+                  ${k.free ? '✓ FREI' : k.bookedBy}
+                </span>
+              </button>
+            `;
+          })}
+
+          ${booking && html`<div style="text-align:center; padding:12px;"><div class="spinner" style="border-color:var(--blue-light);border-top-color:var(--blue);width:28px;height:28px;"></div></div>`}
+
+          <div style="font-size:12px; color:var(--gray); text-align:center; margin-top:12px;">
+            Gebucht als: <strong>${user}</strong>
+          </div>
+        </div>
+      </div>
+    `}
+  `;
+}
+
+// ============================================================
+// 3-Monatsplan View
+// ============================================================
+function QuarterView({ koffer, apiUrl, onNavigateWeek }) {
+  // Start from current month
+  const [startMonth, setStartMonth] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
+  });
+  const [quarterBookings, setQuarterBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Calculate 3 months range
+  const months = useMemo(() => {
+    const result = [];
+    for (let i = 0; i < 3; i++) {
+      let m = startMonth.month + i;
+      let y = startMonth.year;
+      if (m > 11) { m -= 12; y++; }
+      result.push({ year: y, month: m });
+    }
+    return result;
+  }, [startMonth]);
+
+  const dateRange = useMemo(() => {
+    const first = months[0];
+    const last = months[2];
+    const startDate = `${first.year}-${String(first.month + 1).padStart(2, '0')}-01`;
+    const lastDay = new Date(last.year, last.month + 1, 0).getDate();
+    const endDate = `${last.year}-${String(last.month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    return { startDate, endDate };
+  }, [months]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    apiGet('getDateRange', { startDate: dateRange.startDate, endDate: dateRange.endDate })
+      .then(data => {
+        if (!cancelled) {
+          setQuarterBookings(Array.isArray(data) ? data : []);
+          setLoading(false);
+        }
+      })
+      .catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [dateRange]);
+
+  const MONATSNAMEN = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  const TAGE_KURZ = ['Mo','Di','Mi','Do','Fr'];
+
+  const prevQ = () => {
+    let m = startMonth.month - 3;
+    let y = startMonth.year;
+    if (m < 0) { m += 12; y--; }
+    setStartMonth({ year: y, month: m });
+  };
+  const nextQ = () => {
+    let m = startMonth.month + 3;
+    let y = startMonth.year;
+    if (m > 11) { m -= 12; y++; }
+    setStartMonth({ year: y, month: m });
+  };
+  const goCurrentMonth = () => {
+    const now = new Date();
+    setStartMonth({ year: now.getFullYear(), month: now.getMonth() });
+  };
+
+  const todayStr = fmtDate(new Date());
+
+  // Build booking lookup: date -> array of bookings
+  const bookingsByDate = useMemo(() => {
+    const map = {};
+    quarterBookings.forEach(b => {
+      if (!map[b.datum]) map[b.datum] = [];
+      map[b.datum].push(b);
+    });
+    return map;
+  }, [quarterBookings]);
+
+  const renderMonth = (monthInfo) => {
+    const { year, month } = monthInfo;
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0).getDate();
+
+    // Build weeks (Mon-Fri rows)
+    const weeks = [];
+    let currentWeek = [null, null, null, null, null]; // Mo-Fr
+
+    for (let day = 1; day <= lastDay; day++) {
+      const d = new Date(year, month, day);
+      const dow = d.getDay(); // 0=So, 1=Mo, ..., 5=Fr, 6=Sa
+      if (dow >= 1 && dow <= 5) { // Only Mon-Fri
+        currentWeek[dow - 1] = day;
+      }
+      // End of week (Friday) or last day of month
+      if (dow === 5 || day === lastDay) {
+        if (currentWeek.some(d => d !== null)) {
+          weeks.push([...currentWeek]);
+        }
+        currentWeek = [null, null, null, null, null];
+      }
+    }
+
+    return html`
+      <div class="month-block">
+        <h3>${MONATSNAMEN[month]} ${year}</h3>
+        <table class="month-table">
+          <thead>
+            <tr>
+              <th style="width:35px;">KW</th>
+              ${TAGE_KURZ.map(t => html`<th>${t}</th>`)}
+            </tr>
+          </thead>
+          <tbody>
+            ${weeks.map(week => {
+              // Find the first valid day in this week for KW
+              const firstValidDay = week.find(d => d !== null);
+              const kwDate = firstValidDay ? new Date(year, month, firstValidDay) : null;
+              const kw = kwDate ? getKW(kwDate) : '';
+
+              return html`
+                <tr>
+                  <td style="font-weight:600; color:var(--gray); font-size:11px;">${kw}</td>
+                  ${week.map((day, idx) => {
+                    if (day === null) return html`<td></td>`;
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const isToday = dateStr === todayStr;
+                    const ferien = isFerien(dateStr);
+                    const bookings = bookingsByDate[dateStr] || [];
+
+                    if (ferien) {
+                      return html`<td class="ferien-cell" title=${getFerienName(dateStr)}>${day}</td>`;
+                    }
+
+                    const cellClass = isToday ? 'today-cell' : '';
+                    const hasBookings = bookings.length > 0;
+
+                    return html`
+                      <td class="${cellClass} clickable"
+                          onClick=${() => onNavigateWeek(getMonday(new Date(dateStr + 'T00:00:00')))}
+                          title=${hasBookings ? bookings.length + ' Buchung(en) — Klick → Woche' : 'Klick → Woche'}>
+                        <div>${day}</div>
+                        ${hasBookings && html`
+                          <div style="display:flex;justify-content:center;flex-wrap:wrap;gap:1px;margin-top:2px;">
+                            ${bookings.slice(0, 6).map(b => {
+                              const color = b.kofferId === 'K-A' ? 'var(--koffer-a)' : b.kofferId === 'K-B' ? 'var(--koffer-b)' : 'var(--koffer-c)';
+                              return html`<span class="booking-dot" style="background:${color}"></span>`;
+                            })}
+                            ${bookings.length > 6 ? html`<span style="font-size:9px;color:var(--gray);">+${bookings.length - 6}</span>` : ''}
+                          </div>
+                        `}
+                      </td>
+                    `;
+                  })}
+                </tr>
+              `;
+            })}
+          </tbody>
+        </table>
+      </div>
+    `;
+  };
+
+  const label = `${MONATSNAMEN[months[0].month]} – ${MONATSNAMEN[months[2].month]} ${months[2].year}`;
+
+  return html`
+    <div class="quarter-view">
+      <div class="quarter-nav">
+        <button onClick=${prevQ}>◀ 3 Mon.</button>
+        <span class="quarter-label">${label}</span>
+        <button onClick=${nextQ}>3 Mon. ▶</button>
+        <button style="background:var(--green);color:white;font-size:12px;" onClick=${goCurrentMonth}>Heute</button>
+      </div>
+
+      ${loading ? html`<div class="loading-overlay"><div class="spinner"></div><span>Lade 3-Monatsdaten...</span></div>` : html`
+        ${months.map(m => renderMonth(m))}
+
+        <div style="margin-top: 12px; font-size: 12px; color: var(--gray); display: flex; gap: 16px; flex-wrap: wrap;">
+          <span>Zeitraum: <strong>${quarterBookings.length}</strong> Buchungen</span>
+          ${koffer.map(k => {
+            const count = quarterBookings.filter(b => b.kofferId === k.id).length;
+            const color = k.id === 'K-A' ? 'var(--koffer-a)' : k.id === 'K-B' ? 'var(--koffer-b)' : 'var(--koffer-c)';
+            return html`<span style="display:flex;align-items:center;gap:4px;">
+              <span style="width:10px;height:10px;border-radius:2px;background:${color};display:inline-block;"></span>
+              ${k.bezeichnung}: ${count}
+            </span>`;
+          })}
+        </div>
+      `}
+    </div>
+  `;
+}
+
+// ============================================================
+// Year View (Admin only)
+// ============================================================
+function YearView({ koffer, apiUrl, onNavigateWeek }) {
+  const [schuljahr, setSchuljahr] = useState(getSchuljahr(new Date()));
+  const [yearBookings, setYearBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const weeks = useMemo(() => getAllSchulwochen(schuljahr), [schuljahr]);
+  const range = useMemo(() => getSchuljahrRange(schuljahr), [schuljahr]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    apiGet('getDateRange', { startDate: range.startDate, endDate: range.endDate })
+      .then(data => {
+        if (!cancelled) {
+          setYearBookings(Array.isArray(data) ? data : []);
+          setLoading(false);
+        }
+      })
+      .catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [schuljahr]);
+
+  const weekStats = useMemo(() => {
+    const stats = {};
+    weeks.forEach(w => {
+      stats[w.monStr] = { total: 0, byKoffer: {} };
+      koffer.forEach(k => { stats[w.monStr].byKoffer[k.id] = 0; });
+    });
+    yearBookings.forEach(b => {
+      const bDate = new Date(b.datum + 'T00:00:00');
+      const bMonday = getMonday(bDate);
+      const monStr = fmtDate(bMonday);
+      if (stats[monStr]) {
+        stats[monStr].total++;
+        if (stats[monStr].byKoffer[b.kofferId] !== undefined) {
+          stats[monStr].byKoffer[b.kofferId]++;
+        }
+      }
+    });
+    return stats;
+  }, [weeks, yearBookings, koffer]);
+
+  const todayStr = fmtDate(new Date());
+  const todayMonday = fmtDate(getMonday(new Date()));
+
+  const prevSJ = () => setSchuljahr({ start: schuljahr.start - 1, end: schuljahr.end - 1, label: `${schuljahr.start - 1}/${schuljahr.end - 1}` });
+  const nextSJ = () => setSchuljahr({ start: schuljahr.start + 1, end: schuljahr.end + 1, label: `${schuljahr.start + 1}/${schuljahr.end + 1}` });
+
+  return html`
+    <div class="year-view">
+      <div class="year-nav">
+        <button onClick=${prevSJ}>◀</button>
+        <span class="year-label">Schuljahr ${schuljahr.label}</span>
+        <button onClick=${nextSJ}>▶</button>
+      </div>
+
+      ${loading ? html`<div class="loading-overlay"><div class="spinner"></div><span>Lade Schuljahr-Daten...</span></div>` : html`
+        <div style="overflow-x: auto;">
+          <table class="year-table">
+            <thead>
+              <tr>
+                <th>KW</th>
+                <th>Zeitraum</th>
+                <th>Buchungen</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${weeks.map(w => {
+                const stats = weekStats[w.monStr] || { total: 0, byKoffer: {} };
+                const isTodayWeek = w.monStr === todayMonday;
+                const rowClass = w.isFerien ? 'ferien-row' : isTodayWeek ? 'today-row' : '';
+                return html`
+                  <tr class=${rowClass} onClick=${() => !w.isFerien && onNavigateWeek(w.montag)}>
+                    <td style="font-weight:600; width:40px;">${w.kw}</td>
+                    <td style="white-space:nowrap;">
+                      ${fmtDateShort(w.montag)} – ${fmtDateShort(addDays(w.montag, 4))}
+                      ${w.isFerien ? html` · ${w.ferienName}` : ''}
+                    </td>
+                    <td style="width:50px; text-align:center; font-weight:600;">
+                      ${w.isFerien ? '—' : stats.total || ''}
+                    </td>
+                    <td>
+                      ${!w.isFerien && stats.total > 0 && html`
+                        <div class="year-bar">
+                          ${koffer.map(k => {
+                            const count = stats.byKoffer[k.id] || 0;
+                            if (!count) return null;
+                            const color = k.id === 'K-A' ? 'var(--koffer-a)' : k.id === 'K-B' ? 'var(--koffer-b)' : 'var(--koffer-c)';
+                            return html`<div class="year-bar-seg" style="background:${color}; width:${count * 8}px;" title="${k.bezeichnung}: ${count}"></div>`;
+                          })}
+                        </div>
+                      `}
+                    </td>
+                  </tr>
+                `;
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-top: 16px; font-size: 12px; color: var(--gray); display: flex; gap: 16px; flex-wrap: wrap;">
+          <span>Gesamt: <strong>${yearBookings.length}</strong> Buchungen</span>
+          ${koffer.map(k => {
+            const count = yearBookings.filter(b => b.kofferId === k.id).length;
+            const color = k.id === 'K-A' ? 'var(--koffer-a)' : k.id === 'K-B' ? 'var(--koffer-b)' : 'var(--koffer-c)';
+            return html`<span style="display:flex;align-items:center;gap:4px;">
+              <span style="width:10px;height:10px;border-radius:2px;background:${color};display:inline-block;"></span>
+              ${k.bezeichnung}: ${count}
+            </span>`;
+          })}
+        </div>
+      `}
+    </div>
+  `;
+}
+
+// ============================================================
+// Service Worker Registration
+// ============================================================
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+}
+
+// ============================================================
+// Mount
+// ============================================================
+render(html`<${App} />`, document.getElementById('app'));
+</script>
+</body>
+</html>
